@@ -11,7 +11,7 @@ The implementation in this package is essentially an upgrade to tf.keras with te
 
 		https://github.com/keiserlab/keras-neural-graph-fingerprint.
 
-The goal was to create a simple, transparent and accessible version of Duvenauds algorithm which runs smoothly on tf.keras with tensorflow >= 2.0. Large parts of both neural fingerprint layer implementations were rewritten by the author using different, more explicit methods which can be readily modified. 
+The goal was to create a simple, transparent and accessible implementation of Duvenauds algorithm which runs smoothly on tf.keras with tensorflow >= 2.0. Large parts of both neural fingerprint layer implementations were rewritten by the author using different, more explicit methods which can be readily modified. 
 
 The script tf_keras_layers_neural_graph_convolutions offers the following two tf.keras layer classes (child classes of tf.keras.layers.layer):
 
