@@ -1,176 +1,78 @@
-# Keras Neural Graph Fingerprint
 
-This repository is an implementation of [Convolutional Networks on Graphs for Learning Molecular Fingerprints][NGF-paper] in Keras.
+# Neural Graph Fingerprints in tf.keras (tf >= 2.0)
 
-It includes a preprocessing function to convert molecules in smiles representation
-into molecule tensors.
+This package contains an implementation of two tf.keras layers (in tf.keras from tensorflow >= 2.0) which correspond to the operators necessary for computing neural fingerprints for molecular graphs.
+The method is based on the work of Duvenaud et. al. A technical description of the algorithm can be found in the original paper:
 
-Next to this, it includes two custom layers for Neural Graphs in Keras, allowing
-flexible Keras fingerprint models. See [examples.py](examples.py) for an examples
+Title: Convolutional Networks on Graphs for Learning Molecular Fingerprints (by Duvenaud et. al.)
+Link: https://arxiv.org/abs/1509.09292
 
-## Related work
+The implementation in this package is essentially an upgrade to tf.keras with tensorflow >= 2.0 of the keiser-lab implementation of the Duvenaud algorithm. The original implementation can be found at:
 
-There are several implementations of this paper publicly available:
- - by [HIPS][1] using autograd
- - by [debbiemarkslab][2] using theano
- - by [GUR9000] [3] using keras
- - by [ericmjl][4] using autograd
- - by [DeepChem][5] using tensorflow
+		https://github.com/keiserlab/keras-neural-graph-fingerprint.
 
-The closest implementation is the implementation by GUR9000 in Keras. However this
-repository represents moleculs in a fundamentally different way. The consequences
-are described in the sections below.
+The goal was to create a simple, transparent and accessible version of Duvenauds algorithm which runs smoothly on tf.keras with tensorflow >= 2.0. Large parts of both neural fingerprint layer implementations were rewritten by the author using different, more explicit methods which can be readily modified. 
 
-## Molecule Representation
+The script tf_keras_layers_neural_graph_convolutions offers the following two tf.keras layer classes (child classes of tf.keras.layers.layer):
 
-### Atom, bond and edge tensors
-This codebase uses tensor matrices to represent molecules. Each molecule is
-described by a combination of the following three tensors:
+- NeuralFingerprintHidden: Takes the place of the operation of the hidden graph convolution in Duvenauds algorithm (see matrices H in paper).
 
-   - **atom matrix**, size: `(max_atoms, num_atom_features)`
-   	 This matrix defines the atom features.
+- NeuralFingerprintOutput: Takes the place of the operation of the readout convolution in Duvenauds algorithm (see matrices W in paper).
 
-     Each column in the atom matrix represents the feature vector for the atom at
-     the index of that column.
+The package contains an example with a simple water solubility prediction task to illustrate how to use the layers to construct a convolutional neural graph fingerprint network.
 
-   - **edge matrix**, size: `(max_atoms, max_degree)`
-     This matrix defines the connectivity between atoms.
-
-     Each column in the edge matrix represent the neighbours of an atom. The
-     neighbours are encoded by an integer representing the index of their feature
-     vector in the atom matrix.
-
-     As atoms can have a variable number of neighbours, not all rows will have a
-     neighbour index defined. These entries are filled with the masking value of
-     `-1`. (This explicit edge matrix masking value is important for the layers
-     to work)
-
-   - **bond tensor** size: `(max_atoms, max_degree, num_bond_features)`
-   	 This matrix defines the atom features.
-
-   	 The first two dimensions of this tensor represent the bonds defined in the
-   	 edge tensor. The column in the bond tensor at the position of the bond index
-   	 in the edge tensor defines the features of that bond.
-
-   	 Bonds that are unused are masked with 0 vectors.
+The scripts auxiliary_functions_atom_bond_features, auxiliary_functions_graph_tensorion and auxiliary_functions_neural_graph_convolutions contain auxiliary functions which were taken from the keiser-lab implementation of the Duvenaud algorithm (https://github.com/keiserlab/keras-neural-graph-fingerprint). This implementation operates within the graph tensorisation framework which was offered in the keiser-lab implementation. We thus copied parts of the readme of the keiser-lab implementation which still apply to this new implementation below.
 
 
-### Batch representations
+# Molecule Representation
 
- This codes deals with molecules in batches. An extra dimension is added to all
- of the three tensors at the first index. Their respective sizes become:
+## Atom, bond and edge tensors
 
- - **atom matrix**, size: `(num_molecules, max_atoms, num_atom_features)`
- - **edge matrix**, size: `(num_molecules, max_atoms, max_degree)`
- - **bond tensor** size: `(num_molecules, max_atoms, max_degree, num_bond_features)`
+This codebase uses tensor matrices to represent molecules. Each molecule is described by a combination of the following four tensors:
 
-As molecules have different numbers of atoms, max_atoms needs to be defined for
-the entire dataset. Unused atom columns are masked by 0 vectors.
+- atom matrix, size: (max_atoms, num_atom_features) This matrix defines the atom features. Each column in the atom matrix represents the feature vector for the atom at the index of that column.
 
-### Strong and weak points
-The obvious downside of this representation is that there is a lot of masking,
-resulting in a waste of computation power.
+- edge matrix, size: (max_atoms, max_degree) This matrix defines the connectivity between atoms. Each column in the edge matrix represent the neighbours of an atom. The neighbours are encoded by an integer representing the index of their feature vector in the atom matrix. As atoms can have a variable number of neighbours, not all rows will have a neighbour index defined. These entries are filled with the masking value of -1 (this explicit edge matrix masking value is important for the layers to work).
 
-The alternative is to represent the entire dataset as a bag of atoms as in the
-authors [original implementation](https://github.com/HIPS/neural-fingerprint). For
-larger datasets, this is infeasable. In [GUR9000's implementation] (https://github.com/GUR9000/KerasNeuralFingerprint)
-the same approach is used, but each batch is pre-calculated as a bag of atoms.
-The downside of this is that each epoch uses the exact same composition of batches,
-decreasing the stochasticity. Furthermore, Keras recognises the variability in batch-
-size and will not run. In his implementation GUR9000 included a modified version
-of Keras to correct for this.
+- bond tensor size: (max_atoms, max_degree, num_bond_features) This matrix defines the atom features. The first two dimensions of this tensor represent the bonds defined in the edge tensor. The column in the bond tensor at the position of the bond index in the edge tensor defines the features of that bond. Bonds that are unused are masked with 0 vectors.
+    
+- atoms existence, size (max_atoms,). This binary 1d array indicates the number of atoms of a molecule. If a molecule has (say) 2 atoms, the array is (1,1,0,...,0).
 
-The tensor representation used in this repository does not have these downsides,
-and allows for many modificiations of Duvenauds algorithm (there is a lot to explore).
+## Batch representations
 
-Their representation may be optimised for the regular algorithm, but at a first
-glance, the tensor implementation seems to perform reasonably fast (check out
-[the examples](examples.py)).
+This codes deals with molecules in batches. An extra dimension is added to all of the four tensors at the first index. Their respective sizes become:
 
-## NeuralGraph layers
-The two workhorses are defined in [NGF/layers.py](NGF/layers.py).
+- atom matrix, size: (num_molecules, max_atoms, num_atom_features)
+- edge matrix, size: (num_molecules, max_atoms, max_degree)
+- bond tensor size: (num_molecules, max_atoms, max_degree, num_bond_features)
+- atoms existence size: (num_molecules, max_atoms)
 
-`NeuralGraphHidden` takes a set of molecules (represented by `[atoms, bonds, edges]`),
-and returns the convolved feature vectors of the higher layers. Only the feature
-vectors change at each iteration, so for higher layers only the `atom` tensor needs
-to be replaced by the convolved output of the previous `NeuralGraphHidden`.
+As molecules have different numbers of atoms, max_atoms needs to be defined for the entire dataset. Unused atom columns are masked by 0 vectors.
 
-`NeuralGraphOutput` takes a set of molecules (represented by `[atoms, bonds, edges]`),
-and returns the fingerprint output for that layer. According to the [original paper][NGF-paper],
-the fingerprints of all layers need to be summed. But these are neural nets, so
-feel free to play around with the architectures!
+# NeuralFingerprint layers
 
-### Initialisation
-The NeuralGraph layers have an internal (`Dense`) layer of the output size
-(`conv_width` for `NeuralGraphHidden` or `fp_length` for `NeuralGraphOutput`).
-This inner layer accounts for the trainable parameters, activation function, etc.
+The relevant tf.keras layers are defined in tf_keras_layers_neural_graph_convolutions.
 
-There are three ways to initialise the inner layer and it's parameters:
+- NeuralFingerprintHidden takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the convolved feature vectors of the higher layers by applying a  neural network with 1 layers. Only the feature vectors change at each iteration, so for higher layers only the atom tensor needs to be replaced by the convolved output of the previous NeuralFingerprintHidden.
 
-1. Using an integer `conv_width` and possible kwags (`Dense` layer is used)
-  ```python
-  atoms1 = NeuralGraphHidden(conv_width, activation='relu', bias=False)([atoms0, bonds, edges])
-  ```
+- NeuralFingerprintOutput takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the fingerprint output for that layer by applying a 1-layer neural network with softmax output. According to the original paper, the fingerprints of all layers need to be summed. But these are neural nets, so feel free to play around with the architectures!
 
-2. Using an initialised `Dense` layer
-  ```python
-  atoms1 = NeuralGraphHidden(Dense(conv_width, activation='relu', bias=False))([atoms0, bonds, edges])
-  ```
+# Why the atoms_existence tensor?
 
-3. Using a function that returns an initialised `Dense` layer
-  ```python
-  atoms1 = NeuralGraphHidden(lambda: Dense(conv_width, activation='relu', bias=False))([atoms0, bonds, edges])
-  ```
+The additional input tensor "atoms_existence" was added to the framework to account for a subtle theoretical gap in the keiser-lab implementations: 
+atoms associated with a zero feature vector (which can theoretically happen after at least one convolution) AND with degree 0 can still exist and can thus not be ignored. As an example imagine a single carbon atom as input molecule whose atom feature vector gets mapped to zero in the first convolution. The previous implementations would from this moment on treat the carbon atom as nonexistent and thus the molecule as empty.
 
-In the case of `NeuralGraphOutput`, all these three methods would be identical.
-For `NeuralGraphHidden`, these methods are equal, but can be slightly different.
-The reason is that a `NeuralGraphHidden` has a dense layer for each `degree`.
+# Dependencies
 
-The following will not work for `NeuralGraphHidden`:
-```python
-atoms1 = NeuralGraphHidden(conv_width, activation='relu', bias=False, W_regularizer=l2(0.01))([atoms0, bonds, edges])
-```
+- tensorflow >= 2.0
+- rdkit 2020.03.3.0 
+- numpy 1.19.1 
+- pandas 1.1.1.
 
-The reason is that the same `l2` object will be passed to each internal layer,
-wheras an `l2` object can obly be assigned to one layer.
+# Acknowledgements
 
-Method 2. will work, because a new layer is instanciated based on the configuration
-of the passed layer.
+The implementation of both neural fingerprint layers is inspired by (but different from) the two tf.keras graph convolutional layer implementations which can be found in the keiser-lab implementation:
 
-Method 3. will work if a function is provided that returns a new `l2` object each
-time it is called (as would be the case for the given lambda function).
+    - https://github.com/keiserlab/keras-neural-graph-fingerprint/blob/master/NGF/layers.py.
 
-
-## NeuralGraph models
-For convienience, two builder functions are included that can build a variety
-of Neural Graph models by specifiying it's parameters. See [NGF/models.py](NGF/models.py).
-
-The examples in [examples.py](examples.py) should help you along the way.
-NGF
-You can store and load the trained models. Make sure to specify the custom classes:
-```python
-model = load_model('model.h5', custom_objects={'NeuralGraphHidden':NeuralGraphHidden, 'NeuralGraphOutput':NeuralGraphOutput})
-```
-
-## Dependencies
-- [**RDKit**](http://www.rdkit.org/) This dependency is nescecairy to convert molecules into tensor
-representatins, once this step is conducted, the new data can be stored, and RDkit
-is no longer a dependency.
-- [**Keras**](https://keras.io/) Requires keras 1.x for building, training and evaluating the models.
-- [**NumPy**](http://www.numpy.org/)
-
-## Acknowledgements
-- Implementation is based on [Duvenaud et al., 2015][NGF-paper].
-- Feature extraction scripts were copied from [the original implementation][1]
-- Data preprocessing scripts were copied from [GRU2000][3]
-- The usage of the Keras functional API was inspired by [GRU2000][3]
-- Graphpool layer adopted from [Han, et al., 2016][DeepChem-paper]
-
-[NGF-paper]: https://arxiv.org/abs/1509.09292
-[DeepChem-paper]:https://arxiv.org/abs/1611.03199
-[keiserlab]: //http://www.keiserlab.org/
-[1]: https://github.com/HIPS/neural-fingerprint
-[2]: https://github.com/debbiemarkslab/neural-fingerprint-theano
-[3]: https://github.com/GUR9000/KerasNeuralFingerprint
-[4]: https://github.com/ericmjl/graph-fingerprint
-[5]: https://github.com/deepchem/deepchem
+The scripts auxiliary_functions_atom_bond_features, auxiliary_functions_graph_tensorion and auxiliary_functions_neural_graph_convolutions contain useful auxiliary functions which were also taken from the keiser-lab implementation with only minor changes.
