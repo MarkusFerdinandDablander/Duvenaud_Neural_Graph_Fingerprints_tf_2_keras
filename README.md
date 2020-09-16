@@ -4,8 +4,8 @@
 This package contains an implementation of two tf.keras layers (in tf.keras from tensorflow >= 2.0) which correspond to the operators necessary for computing neural fingerprints for molecular graphs.
 The method is based on the work of Duvenaud et. al. A technical description of the algorithm can be found in the original paper:
 
-Title: Convolutional Networks on Graphs for Learning Molecular Fingerprints (by Duvenaud et. al.)
-Link: https://arxiv.org/abs/1509.09292
+- Paper Title: Convolutional Networks on Graphs for Learning Molecular Fingerprints (by Duvenaud et. al.)
+- Link: https://arxiv.org/abs/1509.09292
 
 The implementation in this package is essentially an upgrade to tf.keras with tensorflow >= 2.0 of the keiser-lab implementation of the Duvenaud algorithm. The original implementation can be found at:
 
