@@ -59,6 +59,15 @@ The relevant tf.keras layers are defined in tf_keras_layers_neural_graph_convolu
 
 - NeuralFingerprintOutput takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the fingerprint output for that layer by applying a 1-layer neural network with softmax output. According to the original paper, the fingerprints of all layers need to be summed. But these are neural nets, so feel free to play around with the architectures!
 
+
+# Illustration of Prototypical Graph Convolutional Architecture
+
+
+![Image of Yaktocat](https://github.com/MarkusFerdinandDablander/Rational_Neural_Graph_Fingerprints_tf_2_keras/blob/master/neural_graph_convolution_architecture.svg)
+
+Neural architecture of a molecular graph convolution. The molecule symbols at the left represent molecular graphs with attached atom- and bond feature vectors. The red arrows represent trainable neural networks while the red bars symbolize extracted feature vectors. The plus symbol indicates the summation of all extracted layerwise neural fingerprint vectors to form the global neural fingerprint for the molecular input graph.
+
+
 # Why the atoms_existence tensor?
 
 The additional input tensor "atoms_existence" was added to the framework to account for a subtle theoretical gap in the keiser-lab implementations: 
