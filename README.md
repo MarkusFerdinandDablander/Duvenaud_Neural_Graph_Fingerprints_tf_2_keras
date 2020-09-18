@@ -4,8 +4,8 @@
 This package contains an implementation of two tf.keras layers (in tf.keras from tensorflow >= 2.0) which correspond to the operators necessary for computing neural fingerprints for molecular graphs.
 The method is based on the work of Duvenaud et. al. A technical description of the algorithm can be found in the original paper:
 
-- Paper Title: Convolutional Networks on Graphs for Learning Molecular Fingerprints (by Duvenaud et. al.)
-- Link: https://arxiv.org/abs/1509.09292
+- **Paper Title:** Convolutional Networks on Graphs for Learning Molecular Fingerprints (by Duvenaud et. al.)
+- **Link:** https://arxiv.org/abs/1509.09292
 
 The implementation in this package is essentially an upgrade to tf.keras with tensorflow >= 2.0 of the keiser-lab implementation of the Duvenaud algorithm. The original implementation can be found at:
 
@@ -15,9 +15,9 @@ The goal was to create a simple, transparent and accessible implementation of Du
 
 The script tf_keras_layers_neural_graph_convolutions offers the following two tf.keras layer classes (child classes of tf.keras.layers.layer):
 
-- NeuralFingerprintHidden: Takes the place of the operation of the hidden graph convolution in Duvenauds algorithm (see matrices H in paper).
+- **NeuralFingerprintHidden**: Takes the place of the operation of the hidden graph convolution in Duvenauds algorithm (see matrices H in paper).
 
-- NeuralFingerprintOutput: Takes the place of the operation of the readout convolution in Duvenauds algorithm (see matrices W in paper).
+- **NeuralFingerprintOutput**: Takes the place of the operation of the readout convolution in Duvenauds algorithm (see matrices W in paper).
 
 The package contains an example with a simple water solubility prediction task to illustrate how to use the layers to construct a convolutional neural graph fingerprint network.
 
@@ -32,22 +32,22 @@ This implementation operates within the graph tensorisation framework which was 
 
 This codebase uses tensor matrices to represent molecules. Each molecule is described by a combination of the following four tensors:
 
-- atom matrix, size: (max_atoms, num_atom_features). This matrix defines the atom features. Each column in the atom matrix represents the feature vector for the atom at the index of that column.
+- **atom matrix**, size: (max_atoms, num_atom_features). This matrix defines the atom features. Each column in the atom matrix represents the feature vector for the atom at the index of that column.
 
-- edge matrix, size: (max_atoms, max_degree). This matrix defines the connectivity between atoms. Each column in the edge matrix represent the neighbours of an atom. The neighbours are encoded by an integer representing the index of their feature vector in the atom matrix. As atoms can have a variable number of neighbours, not all rows will have a neighbour index defined. These entries are filled with the masking value of -1 (this explicit edge matrix masking value is important for the layers to work).
+- **edge matrix**, size: (max_atoms, max_degree). This matrix defines the connectivity between atoms. Each column in the edge matrix represent the neighbours of an atom. The neighbours are encoded by an integer representing the index of their feature vector in the atom matrix. As atoms can have a variable number of neighbours, not all rows will have a neighbour index defined. These entries are filled with the masking value of -1 (this explicit edge matrix masking value is important for the layers to work).
 
-- bond tensor size: (max_atoms, max_degree, num_bond_features). This matrix defines the atom features. The first two dimensions of this tensor represent the bonds defined in the edge tensor. The column in the bond tensor at the position of the bond index in the edge tensor defines the features of that bond. Bonds that are unused are masked with 0 vectors.
+- **bond tensor**, size: (max_atoms, max_degree, num_bond_features). This matrix defines the atom features. The first two dimensions of this tensor represent the bonds defined in the edge tensor. The column in the bond tensor at the position of the bond index in the edge tensor defines the features of that bond. Bonds that are unused are masked with 0 vectors.
     
-- atoms existence, size (max_atoms,). This binary 1d array indicates the number of atoms of a molecule. If a molecule has (say) 2 atoms, the array is (1,1,0,...,0).
+- **atoms existence vector**, size (max_atoms,). This binary 1d array indicates the number of atoms of a molecule. If a molecule has (say) 2 atoms, the array is (1,1,0,...,0).
 
 ## Batch representations
 
 This codes deals with molecules in batches. An extra dimension is added to all of the four tensors at the first index. Their respective sizes become:
 
-- atom matrix, size: (num_molecules, max_atoms, num_atom_features)
-- edge matrix, size: (num_molecules, max_atoms, max_degree)
-- bond tensor size: (num_molecules, max_atoms, max_degree, num_bond_features)
-- atoms existence size: (num_molecules, max_atoms)
+- **atom matrix**, size: (num_molecules, max_atoms, num_atom_features)
+- **edge matrix**, size: (num_molecules, max_atoms, max_degree)
+- **bond tensor**, size: (num_molecules, max_atoms, max_degree, num_bond_features)
+- **atoms existence vector**, size: (num_molecules, max_atoms)
 
 As molecules have different numbers of atoms, max_atoms needs to be defined for the entire dataset. Unused atom columns are masked by 0 vectors.
 
@@ -55,9 +55,9 @@ As molecules have different numbers of atoms, max_atoms needs to be defined for 
 
 The relevant tf.keras layers are defined in tf_keras_layers_neural_graph_convolutions.
 
-- NeuralFingerprintHidden takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the convolved feature vectors of the higher layers by applying a  neural network with 1 layers. Only the feature vectors change at each iteration, so for higher layers only the atom tensor needs to be replaced by the convolved output of the previous NeuralFingerprintHidden.
+-**NeuralFingerprintHidden** takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the convolved feature vectors of the higher layers by applying a  neural network with 1 layers. Only the feature vectors change at each iteration, so for higher layers only the atom tensor needs to be replaced by the convolved output of the previous NeuralFingerprintHidden.
 
-- NeuralFingerprintOutput takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the fingerprint output for that layer by applying a 1-layer neural network with softmax output. According to the original paper, the fingerprints of all layers need to be summed. But these are neural nets, so feel free to play around with the architectures!
+- **NeuralFingerprintOutput** takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the fingerprint output for that layer by applying a 1-layer neural network with softmax output. According to the original paper, the fingerprints of all layers need to be summed. But these are neural nets, so feel free to play around with the architectures!
 
 
 # Illustration of Typical Graph Convolutional Architecture
@@ -68,7 +68,7 @@ The relevant tf.keras layers are defined in tf_keras_layers_neural_graph_convolu
 Neural architecture of a molecular graph convolution. The molecule symbols at the left represent molecular graphs with attached atom- and bond feature vectors. The red arrows represent trainable neural networks while the red bars symbolize extracted feature vectors. The plus symbol indicates the summation of all extracted layerwise neural fingerprint vectors to form the global neural fingerprint for the molecular input graph.
 
 
-# Why the atoms_existence tensor?
+# Why the atoms existence vector?
 
 The additional input tensor "atoms_existence" was added to the framework to account for a subtle theoretical gap in the keiser-lab implementations: 
 atoms associated with a zero feature vector (which can theoretically happen after at least one convolution) AND with degree 0 can still exist and can thus not be ignored. As an example imagine a single carbon atom as input molecule whose atom feature vector gets mapped to zero in the first convolution. The previous implementations would from this moment on treat the carbon atom as nonexistent and thus the molecule as empty.
