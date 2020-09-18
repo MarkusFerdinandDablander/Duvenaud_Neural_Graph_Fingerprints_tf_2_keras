@@ -55,7 +55,7 @@ As molecules have different numbers of atoms, max_atoms needs to be defined for 
 
 The relevant tf.keras layers are defined in tf_keras_layers_neural_graph_convolutions.
 
--**NeuralFingerprintHidden** takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the convolved feature vectors of the higher layers by applying a  neural network with 1 layers. Only the feature vectors change at each iteration, so for higher layers only the atom tensor needs to be replaced by the convolved output of the previous NeuralFingerprintHidden.
+- **NeuralFingerprintHidden** takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the convolved feature vectors of the higher layers by applying a  neural network with 1 layers. Only the feature vectors change at each iteration, so for higher layers only the atom tensor needs to be replaced by the convolved output of the previous NeuralFingerprintHidden.
 
 - **NeuralFingerprintOutput** takes a set of molecules (represented by [atoms, bonds, edges, atoms_existence]), and returns the fingerprint output for that layer by applying a 1-layer neural network with softmax output. According to the original paper, the fingerprints of all layers need to be summed. But these are neural nets, so feel free to play around with the architectures!
 
