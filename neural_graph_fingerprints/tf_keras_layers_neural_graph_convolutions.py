@@ -33,7 +33,7 @@ this moment on treat the carbon atom as nonexistent and thus the molecule as emp
 # import packages
 import tensorflow as tf
 import numpy as np
-from tensorflow.keras.layers import Dense, InputSpec
+from tensorflow.keras.layers import Dense, InputSpec, Dropout
 from tensorflow.keras import initializers, regularizers, constraints
 from . import auxiliary_functions_graph_tensorisation as afgt
 from . import auxiliary_functions_neural_graph_convolutions as afngf
@@ -72,6 +72,7 @@ class NeuralFingerprintHidden(tf.keras.layers.Layer):
                  use_bias = True, 
                  kernel_initializer = tf.keras.initializers.GlorotUniform,
                  bias_initializer = tf.keras.initializers.Zeros,
+                 dropout_rate_input = 0,
                  **kwargs):
         
         super(NeuralFingerprintHidden, self).__init__(**kwargs)
@@ -81,6 +82,7 @@ class NeuralFingerprintHidden(tf.keras.layers.Layer):
         self.use_bias = use_bias
         self.kernel_initializer = kernel_initializer
         self.bias_initializer = bias_initializer
+        self.dropout_rate_input = dropout_rate_input
         self.max_degree = None # value of max_degree is not known just yet, but note that it further down defines the number of weight matrices W_d
 
 
@@ -92,6 +94,9 @@ class NeuralFingerprintHidden(tf.keras.layers.Layer):
         
         # set value for attribute self.max_degree
         self.max_degree = max_degree
+
+        # generate dropout latyer for input
+        self.Drop_input = Dropout(self.dropout_rate_input) 
         
         # generate trainable layers D_0, ..., D_{max_degree} (for each degree d = 0,...,max_degree we convolve with a different dense layer D_i)
         
@@ -99,6 +104,10 @@ class NeuralFingerprintHidden(tf.keras.layers.Layer):
         
         for degree in range(0, self.max_degree + 1):
             
+            # initialize dense layers D_1,...,D_{max_degree}
+            exec("self.D_" + str(degree) + " = Dense(units = self.conv_width, activation = self.activation, use_bias = self.use_bias, kernel_initializer = self.kernel_initializer, bias_initializer = self.bias_initializer)")
+            exec("self.D_list.append(self.D_" + str(degree) + ")")
+
             # initialize dense layers D_1,...,D_{max_degree}
             exec("self.D_" + str(degree) + " = Dense(units = self.conv_width, activation = self.activation, use_bias = self.use_bias, kernel_initializer = self.kernel_initializer, bias_initializer = self.bias_initializer)")
             exec("self.D_list.append(self.D_" + str(degree) + ")")
@@ -140,9 +149,12 @@ class NeuralFingerprintHidden(tf.keras.layers.Layer):
 
             # choose the right degree-dependent layer
             D_degree = self.D_list[int(degree)]
+
+            # apply dropout
+            new_unmasked_features = self.Drop_input(summed_atom_bond_features)
             
-            # apply layer
-            new_unmasked_features = D_degree(summed_atom_bond_features)
+            # apply dense layer
+            new_unmasked_features = D_degree(new_unmasked_features)
             
             # create mask for this degree and perform degree-dependent masking via multiplication with binary 0-1 tensor
             atom_masks_this_degree = tf.cast(tf.math.equal(atom_degrees, degree), dtype = np.float32) # atom_masks_this_degree.shape = (num_molecules, max_atoms, 1)
@@ -167,7 +179,8 @@ class NeuralFingerprintHidden(tf.keras.layers.Layer):
                 'Activation Function': self.activation,
                 'Usage of Bias Vector': self.use_bias,
                 'Kernel Initalizer': self.kernel_initializer,
-                'Bias Initializer': self.bias_initializer}
+                'Bias Initializer': self.bias_initializer,
+                'Input Layer Dropout Rate': self.dropout_rate_input}
 
         return dict(list(config.items()) + list(base_config.items()))
 
@@ -205,6 +218,7 @@ class NeuralFingerprintOutput(tf.keras.layers.Layer):
                  use_bias = True, 
                  kernel_initializer = tf.keras.initializers.GlorotUniform,
                  bias_initializer = tf.keras.initializers.Zeros,
+                 dropout_rate_input = 0,
                  **kwargs):
         
         super(NeuralFingerprintOutput, self).__init__(**kwargs)
@@ -214,6 +228,7 @@ class NeuralFingerprintOutput(tf.keras.layers.Layer):
         self.use_bias = use_bias
         self.kernel_initializer = kernel_initializer
         self.bias_initializer = bias_initializer
+        self.dropout_rate_input = dropout_rate_input
 
         
     def build(self, inputs_shape):
@@ -221,6 +236,9 @@ class NeuralFingerprintOutput(tf.keras.layers.Layer):
         # import dimensions
         (max_atoms, max_degree, num_atom_features, num_bond_features, num_molecules) = afngf.mol_shapes_to_dims(mol_shapes = inputs_shape[0:3])
         num_atom_bond_features = num_atom_features + num_bond_features
+
+        # initialize dropout layer
+        self.Drop_input = Dropout(self.dropout_rate_input)
 
         # initialize trainable layer
         self.D = Dense(units = self.fp_length, activation = self.activation, use_bias = self.use_bias, kernel_initializer = self.kernel_initializer, bias_initializer = self.bias_initializer) 
@@ -245,8 +263,11 @@ class NeuralFingerprintOutput(tf.keras.layers.Layer):
         # concatenate the atom features and summed bond features
         summed_atom_bond_features = tf.concat([atoms, summed_bond_features], axis=-1) # summed_atom_bond_features.shape = (num_molecules, max_atoms, num_atom_bond_features)
 
+        # apply dropout
+        neural_fp_atomwise = self.Drop_input(summed_atom_bond_features)
+
         # apply trainable layer to compute fingerprint
-        neural_fp_atomwise = self.D(summed_atom_bond_features)
+        neural_fp_atomwise = self.D(neural_fp_atomwise)
 
         # set feature rows of neural_fp_atomwise which correspond to non-existing atoms to 0 via 0-1 binary multiplicative masking (this step is where we need atoms_existence)
         neural_fp_atomwise_masked = tf.linalg.matrix_transpose(tf.linalg.matrix_transpose(neural_fp_atomwise) * atoms_existence)
@@ -265,7 +286,8 @@ class NeuralFingerprintOutput(tf.keras.layers.Layer):
                 'Activation Function': self.activation,
                 'Usage of Bias Vector': self.use_bias,
                 'Kernel Initalizer': self.kernel_initializer,
-                'Bias Initializer': self.bias_initializer}
+                'Bias Initializer': self.bias_initializer,
+                'Input Layer Dropout Rate': self.dropout_rate_input}
 
         return dict(list(config.items()) + list(base_config.items()))
     
